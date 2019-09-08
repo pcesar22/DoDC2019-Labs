@@ -8,14 +8,13 @@ module alu (
 
   parameter N = 32;
 
-  localparam OP_AND     = 4'b0000;
-  localparam OP_OR      = 4'b0001;
-  localparam OP_SUM     = 4'b0010;
-  localparam OP_UNUSED  = 4'b0011;
-  localparam OP_AND_NOT = 4'b0100;
-  localparam OP_OR_NOT  = 4'b0101;
-  localparam OP_MINUS   = 4'b0110;
-  localparam OP_SLT     = 4'b0111;
+  localparam OP_SUM     = 4'b0000;
+  localparam OP_SUB     = 4'b0010;
+  localparam OP_AND     = 4'b0100;
+  localparam OP_OR      = 4'b0101;
+  localparam OP_XOR     = 4'b0110;
+  localparam OP_NOR     = 4'b0111;
+  localparam OP_SLT     = 4'b1010;
 
   always @ (*) begin
     case (op_sel_i)
@@ -23,22 +22,20 @@ module alu (
         op_res_o = op_a_i & op_b_i;
       OP_OR:
         op_res_o = op_a_i | op_b_i;
+      OP_XOR:
+        op_res_o = op_a_i ^ op_b_i;
+      OP_NOR:
+        op_res_o = ~(op_a_i | op_b_i);
       OP_SUM:
         op_res_o = op_a_i + op_b_i;
-      OP_UNUSED:
-        op_res_o = op_a_i;
-      OP_AND_NOT:
-        op_res_o = op_a_i & ~op_b_i;
-      OP_OR_NOT:
-        op_res_o = op_a_i | ~op_b_i;
-      OP_MINUS:
+      OP_SUB:
         op_res_o = op_a_i - op_b_i;
       OP_SLT:
-        op_res_o = (op_a_i < op_b_i) ? op_a_i : op_b_i;
+        op_res_o = (op_a_i - op_b_i) >> (N-1) ;
+        // op_res_o = 32'd1;
       default:
         ;
     endcase // case (op_sel_i)
   end
-
 
 endmodule // alu

@@ -1,3 +1,4 @@
+
 #include "Valu.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
@@ -6,14 +7,13 @@
 
 using namespace std;
 
-#define OP_AND     0b0000
-#define OP_OR      0b0001
-#define OP_SUM     0b0010
-#define OP_UNUSED  0b0011
-#define OP_AND_NOT 0b0100
-#define OP_OR_NOT  0b0101
-#define OP_MINUS   0b0110
-#define OP_SLT     0b0111
+#define OP_SUM     0b0000
+#define OP_SUB     0b0010
+#define OP_AND     0b0100
+#define OP_OR      0b0101
+#define OP_XOR     0b0110
+#define OP_NOR     0b0111
+#define OP_SLT     0b1010
 
 string selectOperatorName(int operation)
 {
@@ -29,23 +29,20 @@ string selectOperatorName(int operation)
     case OP_SUM:
         operatorName = "SUM";
         break;
-    case OP_UNUSED:
-        operatorName = "UNUNSED";
+    case OP_XOR:
+        operatorName = "XOR";
         break;
-    case OP_AND_NOT:
-        operatorName = "AND NOT";
+    case OP_NOR:
+        operatorName = "NOR";
         break;
-    case OP_OR_NOT:
-        operatorName = "OR NOT";
-        break;
-    case OP_MINUS:
-        operatorName = "MINUS";
+    case OP_SUB:
+        operatorName = "SUB";
         break;
     case OP_SLT:
         operatorName = "SLT";
         break;
     default:
-        printf("Unknown operation: %02X!!!\n", operation);
+        operatorName = "UNDEFINED";
         break;
     }
     return operatorName;
@@ -53,7 +50,28 @@ string selectOperatorName(int operation)
 
 int generateRandomOperation()
 {
-    return int(rand() % 8);
+    int result = 0;
+    int val = int(rand() % 7);
+    switch(val)
+    {
+    case 0:
+        result = OP_SUM; break;
+    case 1:
+        result = OP_SUB; break;
+    case 2:
+        result = OP_AND; break;
+    case 3:
+        result = OP_OR; break;
+    case 4:
+        result = OP_XOR; break;
+    case 5:
+        result = OP_NOR; break;
+    case 6:
+        result = OP_SLT; break;
+    default:
+        break;
+    }
+    return result;
 }
 
 int generateRandomNumber(int nbits)
@@ -71,25 +89,24 @@ int predictOutput (int a, int b, int operation)
     case OP_OR:
         prediction = a | b;
         break;
+    case OP_XOR:
+        prediction = a ^ b;
+        break;
+    case OP_NOR:
+        prediction = ~(a | b);
+        break;
     case OP_SUM:
         prediction = a + b;
         break;
-    case OP_UNUSED:
-        prediction = a;
-        break;
-    case OP_AND_NOT:
-        prediction = a & ~b;
-        break;
-    case OP_OR_NOT:
-        prediction = a | ~b;
-        break;
-    case OP_MINUS:
+    case OP_SUB:
         prediction = a - b;
         break;
     case OP_SLT:
-        prediction = (a<b)?a:b;
+        prediction = (a<b)?1:0;
         break;
     default:
+        // default to a for unknown operators
+        prediction = a;
         break;
     }
     return prediction;
@@ -97,18 +114,28 @@ int predictOutput (int a, int b, int operation)
 
 int main(int argc, char **argv, char **env)
 {
-
     Verilated::commandArgs(argc, argv);
+
 
     // init top verilog instance
     Valu* tb = new Valu;
+
+    // Parse arguments locally
+    bool verbose = false;
+    for (int i  = 0; i < argc; i++)
+    {
+        if (string(argv[i]) == "--verbose")
+        {
+            verbose = true;
+        }
+    }
 
     // init trace dump
     /* Verilated::traceEverOn(true); */
     /* VerilatedVcdC* tfp = new VerilatedVcdC; */
 
     string operatorName;
-    int numOfTests = 1000000;
+    int numOfTests = 10000;
     int prediction;
     bool allPass = true;
 
@@ -119,14 +146,11 @@ int main(int argc, char **argv, char **env)
         tb->op_sel_i = generateRandomOperation();
         operatorName = selectOperatorName(tb->op_sel_i);
         prediction = predictOutput(tb->op_a_i, tb->op_b_i, tb->op_sel_i);
+
         tb->eval();
 
-        if (tb->op_res_o == prediction)
+        if (verbose)
         {
-        }
-        else
-        {
-            allPass = false;
             printf("[%d/%d]: %d %s %d = %d",
                    i+1,
                    numOfTests,
@@ -134,20 +158,20 @@ int main(int argc, char **argv, char **env)
                    operatorName.c_str(),
                    tb->op_b_i,
                    tb->op_res_o);
+        }
+        if (tb->op_res_o != prediction )
+        {
+            allPass = false;
 
             printf(" ... FAIL (expected %08X, got %08X)\n", prediction , tb->op_res_o);
         }
+        else if (verbose) printf(" ... SUCCESS!\n");
     }
 
     if (allPass)
     {
         printf("All %d tests passed!\n", numOfTests);
     }
-    // printf("Operation selected: %2X (%s)\n",
-    //        tb->op_sel_i, operatorName.c_str());
-    // printf("%08X %s %08X = %08X\n",
-    //        tb->op_a_i, operatorName.c_str(), tb->op_b_i, tb->op_res_o);
 
-    /* tfp->close(); */
     exit(0);
 }
