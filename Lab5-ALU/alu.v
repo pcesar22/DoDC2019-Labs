@@ -16,6 +16,8 @@ module alu (
   localparam OP_NOR     = 4'b0111;
   localparam OP_SLT     = 4'b1010;
 
+  reg [N-1:0] op_res_o;
+
   always @ (*) begin
     case (op_sel_i)
       OP_AND:
